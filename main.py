@@ -1,9 +1,10 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import PyQt5.QtGui as QtGui
+import PyQt5.QtWidgets as QtWidgets
 
 from server import UDPServer
-from jisho import get_tokens
+from jisho import get_tokens, WordRecord, Jisho
 
 from itertools import accumulate
 
@@ -24,12 +25,18 @@ STYLE = """
     QTextEdit {
         font-family: Times New Roman;font-size: 30pt
     }
+    
+    QTableWidget {
+        font-family: Times New Roman;font-size: 16pt
+    }
 """
 
 
 class JTextEdit(QTextEdit):
-    def __init__(self):
-        super().__init__()
+    selected_text:str = ''
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
         self.fmt_green = QtGui.QTextCharFormat()
         self.fmt_green.setBackground(QtGui.QBrush(QtGui.QColor(200, 255, 200)))
@@ -49,9 +56,6 @@ class JTextEdit(QTextEdit):
         print(self.tokens)
 
         super().setText(''.join(tokens))
-
-    def mouseDoubleClickEvent(self, e: QtGui.QMouseEvent) -> None:
-        print('executed')
 
     def set_highlight(self, left, right, fmt):
         cursor = self.textCursor()
@@ -79,29 +83,77 @@ class JTextEdit(QTextEdit):
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
         cursor = self.textCursor()
 
+        token = None
+        left = right = None
+
         if cursor.selectedText():
             token = cursor.selectedText()
             left = cursor.selectionStart()
             right = cursor.selectionEnd()
         else:
-            token, left, right = self.findCursorToken(cursor)
-            self.set_highlight(left, right, self.fmt_green)
+            result = self.findCursorToken(cursor)
+            if result:
+                token, left, right = result
+                self.set_highlight(left, right, self.fmt_green)
+
+        self.selected_text = token
 
         super().mouseReleaseEvent(e)
+
+
+class TableView(QTableWidget):
+    def __init__(self, *args):
+        super().__init__(0, 4)
+        #self.setData()
+        self.setHorizontalHeaderLabels(['kanji', 'kana', 'english', 'POS'])
+        self.resizeColumnsToContents()
+        self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
+        self.horizontalHeader().setStretchLastSection(True)
+
+    def addRecord(self, record: WordRecord):
+        currentRow = self.rowCount()
+        self.insertRow(currentRow)
+
+        self.setItem(currentRow, 0, QTableWidgetItem(record.kanji))
+        self.setItem(currentRow, 1, QTableWidgetItem(record.kana))
+        self.setItem(currentRow, 2, QTableWidgetItem(record.english))
+        self.setItem(currentRow, 3, QTableWidgetItem(record.pos))
+
+        self.resizeColumnsToContents()
 
 
 class JSubFocusWindow(QMainWindow):
     info_text = None
 
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.resize(640, 240)
-        self.centralWidget = JTextEdit()
+        self.jisho = Jisho()
+
+        self.resize(640, 840)
+        self.jedit = JTextEdit()
+        self.table = TableView()
+        self.search_button = QPushButton('search in jisho.org')
+        self.layout = QVBoxLayout()
+        self.centralWidget = QWidget()
+
         self.setCentralWidget(self.centralWidget)
+
         self.centralWidget.setStyleSheet(STYLE)
+        self.centralWidget.setLayout(self.layout)
+
+        self.layout.addWidget(self.jedit)
+        self.layout.addWidget(self.search_button)
+        self.layout.addWidget(self.table)
+
+        self.search_button.clicked.connect(self.update_with_selection)
+
+    def update_with_selection(self):
+        self.table.setRowCount(0)
+        for rec in self.jisho.lookup(self.jedit.selected_text):
+            self.table.addRecord(rec)
 
     def update_with_text(self, text):
-        self.centralWidget.setText(text)
+        self.jedit.setText(text)
         self.show()
 
 
@@ -119,7 +171,7 @@ class JSubWindow(QMainWindow):
         super().__init__(parent)
         self.focus_window = JSubFocusWindow(self)
 
-        self.setWindowTitle("Anime Subtitle Analyzer")
+        self.setWindowTitle("Anime Subtitle Assistor")
         self.resize(640, 480)
         self.centralWidget = QListWidget()
         self.centralWidget.setStyleSheet(STYLE)

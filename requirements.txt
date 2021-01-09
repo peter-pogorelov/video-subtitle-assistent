@@ -1,5 +1,4 @@
-pysubparser
-mecab-python3
-unidic-lite
-opencv-python
-ffpyplayer
+mecab-python3==1.0.3
+PyQt5==5.15.2
+PyQt5-sip==12.8.1
+unidic-lite==1.0.7
