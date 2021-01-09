@@ -1,0 +1,5 @@
+pysubparser
+mecab-python3
+unidic-lite
+opencv-python
+ffpyplayer
