@@ -165,7 +165,8 @@ class JSubWindow(QMainWindow):
         item.setSizeHint(QSize(0, 40 * n_lines))
         if n_items % 2 == 0:
             item.setBackground(QtGui.QBrush(QtGui.QColor(200, 255, 200)))
-        self.centralWidget.addItem(item)
+        #self.centralWidget.addItem(item)
+        self.centralWidget.insertItem(0, item)
 
     def __init__(self, parent=None):
         super().__init__(parent)
