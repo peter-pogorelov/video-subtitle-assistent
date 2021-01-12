@@ -1,25 +1,15 @@
 import pathlib
 
-import MeCab
-
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import PyQt5.QtGui as QtGui
-import PyQt5.QtWidgets as QtWidgets
-
 from dictionary.jap2eng.jmdict import JMDict
+from gui.widgets import TokenizedTextEdit, DictionaryTableView
 from server import UDPServer
-from dictionary.jap2eng.jisho import JapaneseEnglishWord, Jisho
 
 from itertools import accumulate
 
-wakati = MeCab.Tagger("-Owakati")
-
-
-def get_tokens(sentence):
-    global wakati
-    return wakati.parse(sentence).split()
-
+from tokenizer.jap2eng.wakati import WakatiTokenizer
 
 STYLE = """
     QListView { 
@@ -45,96 +35,6 @@ STYLE = """
 """
 
 
-class JTextEdit(QTextEdit):
-    selected_text:str = ''
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.fmt_green = QtGui.QTextCharFormat()
-        self.fmt_green.setBackground(QtGui.QBrush(QtGui.QColor(200, 255, 200)))
-
-        self.fmt_white = QtGui.QTextCharFormat()
-        self.fmt_white.setBackground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
-
-        self.tokens = list()
-
-    def setText(self, text):
-        tokens = get_tokens(text)
-        toklens = [len(token) for token in get_tokens(text)]
-        right = list(accumulate(toklens))
-        left = [0] + right[:-1]
-
-        self.tokens = [(t, [l, r]) for t, l, r in zip(tokens, left, right)]
-        print(self.tokens)
-
-        super().setText(''.join(tokens))
-
-    def set_highlight(self, left, right, fmt):
-        cursor = self.textCursor()
-        cursor.setPosition(left, cursor.MoveAnchor)
-        cursor.setPosition(right, cursor.KeepAnchor)
-        cursor.setCharFormat(fmt)
-
-    def findCursorToken(self, cursor):
-        pos = cursor.position()
-        for tok, [l, r] in self.tokens:
-            if l <= pos and pos < r:
-                return tok, l, r
-        return None
-
-    def highlightCursorSelection(self, cursor):
-        start = cursor.selectionStart()
-        end = cursor.selectionEnd()
-
-        self.set_highlight(start, end, self.fmt_blue)
-
-    def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
-        self.set_highlight(0, len(self.toPlainText()), self.fmt_white)
-        return super().mousePressEvent(e)
-
-    def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
-        cursor = self.textCursor()
-
-        token = None
-        left = right = None
-
-        if cursor.selectedText():
-            token = cursor.selectedText()
-            left = cursor.selectionStart()
-            right = cursor.selectionEnd()
-        else:
-            result = self.findCursorToken(cursor)
-            if result:
-                token, left, right = result
-                self.set_highlight(left, right, self.fmt_green)
-
-        self.selected_text = token
-
-        super().mouseReleaseEvent(e)
-
-
-class TableView(QTableWidget):
-    def __init__(self, *args):
-        super().__init__(0, 4)
-        #self.setData()
-        self.setHorizontalHeaderLabels(['kanji', 'kana', 'english', 'POS'])
-        self.resizeColumnsToContents()
-        self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
-        self.horizontalHeader().setStretchLastSection(True)
-
-    def addRecord(self, record: JapaneseEnglishWord):
-        currentRow = self.rowCount()
-        self.insertRow(currentRow)
-
-        self.setItem(currentRow, 0, QTableWidgetItem(record.kanji))
-        self.setItem(currentRow, 1, QTableWidgetItem(record.kana))
-        self.setItem(currentRow, 2, QTableWidgetItem(record.english))
-        self.setItem(currentRow, 3, QTableWidgetItem(record.pos))
-
-        self.resizeColumnsToContents()
-
-
 class JSubFocusWindow(QMainWindow):
     info_text = None
 
@@ -142,10 +42,12 @@ class JSubFocusWindow(QMainWindow):
         super().__init__(parent)
         #self.jisho = Jisho()
         self.jisho = JMDict(pathlib.Path('/database/test.db'))
+        self.tokenizer = WakatiTokenizer()
 
-        self.resize(640, 840)
-        self.jedit = JTextEdit()
-        self.table = TableView()
+        self.resize(640, 480)
+        self.jedit = TokenizedTextEdit(self.tokenizer)
+        self.jedit.setFixedHeight(640//5)
+        self.table = DictionaryTableView()
         self.search_button = QPushButton('translate...')
         self.layout = QVBoxLayout()
         self.centralWidget = QWidget()
@@ -162,9 +64,8 @@ class JSubFocusWindow(QMainWindow):
         self.search_button.clicked.connect(self.update_with_selection)
 
     def update_with_selection(self):
-        self.table.setRowCount(0)
-        for rec in self.jisho.find_from_base_language(self.jedit.selected_text)[:10]:
-            self.table.addRecord(rec)
+        found_records = self.jisho.find_from_base_language(self.jedit.selected_text)[:10]
+        self.table.add_from_list(self.jisho.to_table(found_records))
 
     def update_with_text(self, text):
         self.jedit.setText(text)

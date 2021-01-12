@@ -30,7 +30,8 @@ class BaseJapEngDictionary(BaseDictionary):
         return sorted(results, key=lambda x: abs(len(x.english) - len(word)))
 
     def to_table(self, response: typing.List[JapaneseEnglishWord]):
-        return [['Kanji', 'Kana', 'English', 'POS']] + []
+        return [['Kanji', 'Kana', 'English', 'POS']] + \
+                [[record.kanji, record.kana, record.english, record.pos] for record in response]
 
     def find_from_base_language(self, word) -> typing.List[JapaneseEnglishWord]:
         raise NotImplementedError()
