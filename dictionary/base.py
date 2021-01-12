@@ -1,6 +1,3 @@
-import typing
-
-
 class BaseDictionary(object):
     def __init__(self):
         pass

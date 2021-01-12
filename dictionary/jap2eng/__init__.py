@@ -10,8 +10,11 @@ class JapaneseEnglishWord:
     english: str = ''
 
 
-def word_remainder(response, query):
-    return set(list(response)).difference(list(query))
+def word_remainder(response, query) -> set:
+    if response == '':
+        return set(list(query))
+    else:
+        return set(list(response)).difference(list(query))
 
 
 class BaseJapEngDictionary(BaseDictionary):

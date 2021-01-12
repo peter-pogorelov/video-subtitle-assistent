@@ -3,13 +3,11 @@ import pathlib
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import PyQt5.QtGui as QtGui
-from dictionary.jap2eng.jmdict import JMDict
-from gui.widgets import TokenizedTextEdit, DictionaryTableView
-from server import UDPServer
 
-from itertools import accumulate
-
-from tokenizer.jap2eng.wakati import WakatiTokenizer
+from gui import TokenizedTextEdit, DictionaryTableView
+from dictionary import JMDict
+from tokenizer import WakatiTokenizer
+from datastream import UDPSubtitleStreamServer
 
 STYLE = """
     QListView { 
@@ -87,7 +85,7 @@ class JSubWindow(QMainWindow):
         super().__init__(parent)
         self.focus_window = JSubFocusWindow(self)
 
-        self.setWindowTitle("Anime Subtitle Assistor")
+        self.setWindowTitle("Video Subtitle Assistor")
         self.resize(640, 480)
         self.centralWidget = QListWidget()
         self.centralWidget.setStyleSheet(STYLE)
@@ -102,9 +100,9 @@ class JSubWindow(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication([])
-    server = UDPServer()
+    server = UDPSubtitleStreamServer()
     window = JSubWindow()
-    server.subscribe(window.addNewItem)
+    server.add_subscriber(window.addNewItem)
     server.run()
     window.show()
     app.exec_()

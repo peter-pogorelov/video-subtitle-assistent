@@ -1,15 +1,16 @@
 import socket
 from threading import Thread
+from datastream.base import BaseSubtitleStreamServer
 
 
-class UDPServer(object):
+class UDPSubtitleStreamServer(BaseSubtitleStreamServer):
     def __init__(self, ip = "127.0.0.1", port = 5005):
         self.ip = ip
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.subscriptions = list()
 
-    def subscribe(self, callback):
+    def add_subscriber(self, callback):
         self.subscriptions.append(callback)
 
     def __receive_messages(self):
