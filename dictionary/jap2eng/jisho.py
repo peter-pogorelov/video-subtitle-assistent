@@ -3,34 +3,24 @@ import requests
 import json
 import typing
 
-wakati = MeCab.Tagger("-Owakati")
+from dictionary.jap2eng import JapaneseEnglishWord, BaseJapEngDictionary
 
 
-def get_tokens(sentence):
-    global wakati
-    return wakati.parse(sentence).split()
-
-
-class WordRecord(object):
-    kanji = ''
-    kana = ''
-    english = ''
-    pos = ''
-
-
-class Jisho(object):
+class Jisho(BaseJapEngDictionary):
     def __init__(self):
+        super().__init__()
+
         self.url = 'https://jisho.org/api/v1/search/words?keyword='
 
     def __query_word(self, word) -> dict:
         req = requests.get(self.url + word)
         return json.loads(req.content)
 
-    def __parse_record(self, recdata: dict) -> WordRecord:
-        record = WordRecord()
+    def __parse_record(self, recdata: dict) -> JapaneseEnglishWord:
+        record = JapaneseEnglishWord()
 
         if 'japanese' not in recdata.keys() or not recdata['japanese']:
-            return None
+            return record
 
         japanese = recdata['japanese'][0]
         if 'word' in japanese:
@@ -39,7 +29,7 @@ class Jisho(object):
             record.kana = japanese['reading']
 
         if 'senses' not in recdata.keys() or not recdata['senses']:
-            return None
+            return record
 
         senses = recdata['senses'][0]
 
@@ -51,9 +41,13 @@ class Jisho(object):
 
         return record
 
-    def lookup(self, word) -> typing.List[WordRecord]:
+    def find_from_base_language(self, word) -> typing.List[JapaneseEnglishWord]:
         wordlist = self.__query_word(word)['data']
         result = list()
         for record in wordlist:
             result.append(self.__parse_record(record))
         return result
+
+    def find_from_reference_language(self, word) -> typing.List[JapaneseEnglishWord]:
+        # searching interface in jisho.org is symmetric
+        return self.find_from_base_language(word)

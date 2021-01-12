@@ -1,12 +1,25 @@
+import pathlib
+
+import MeCab
+
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import PyQt5.QtGui as QtGui
 import PyQt5.QtWidgets as QtWidgets
 
+from dictionary.jap2eng.jmdict import JMDict
 from server import UDPServer
-from jisho import get_tokens, WordRecord, Jisho
+from dictionary.jap2eng.jisho import JapaneseEnglishWord, Jisho
 
 from itertools import accumulate
+
+wakati = MeCab.Tagger("-Owakati")
+
+
+def get_tokens(sentence):
+    global wakati
+    return wakati.parse(sentence).split()
+
 
 STYLE = """
     QListView { 
@@ -110,7 +123,7 @@ class TableView(QTableWidget):
         self.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
         self.horizontalHeader().setStretchLastSection(True)
 
-    def addRecord(self, record: WordRecord):
+    def addRecord(self, record: JapaneseEnglishWord):
         currentRow = self.rowCount()
         self.insertRow(currentRow)
 
@@ -127,12 +140,13 @@ class JSubFocusWindow(QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.jisho = Jisho()
+        #self.jisho = Jisho()
+        self.jisho = JMDict(pathlib.Path('/database/test.db'))
 
         self.resize(640, 840)
         self.jedit = JTextEdit()
         self.table = TableView()
-        self.search_button = QPushButton('search in jisho.org')
+        self.search_button = QPushButton('translate...')
         self.layout = QVBoxLayout()
         self.centralWidget = QWidget()
 
@@ -149,7 +163,7 @@ class JSubFocusWindow(QMainWindow):
 
     def update_with_selection(self):
         self.table.setRowCount(0)
-        for rec in self.jisho.lookup(self.jedit.selected_text):
+        for rec in self.jisho.find_from_base_language(self.jedit.selected_text)[:10]:
             self.table.addRecord(rec)
 
     def update_with_text(self, text):
